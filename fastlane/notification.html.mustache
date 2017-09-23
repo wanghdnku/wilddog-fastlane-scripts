@@ -1,0 +1,41 @@
+Hi, All:
+<br><br>
+    下面是 {{release_project_name}} iOS {{version_string}} ChangeLog:
+<br>
+{{#changelog}}
+{{#add.count}}
+<h4>新增</h4>
+<ul>
+{{#add}}
+    <li>{{content}}</li>
+{{/add}}
+</ul>
+{{/add.count}}
+
+{{#improve.count}}
+<h4>改进</h4>
+<ul>
+{{#improve}}
+    <li>{{content}}</li>
+{{/improve}}
+</ul>
+{{/improve.count}}
+
+{{#repair.count}}
+<h4>修复</h4>
+<ul>
+{{#repair}}
+    <li>{{content}}</li>
+{{/repair}}
+</ul>
+{{/repair.count}}
+
+{{#remove.count}}
+<h4>移除</h4>
+<ul>
+{{#remove}}
+    <li>{{content}}</li>
+{{/remove}}
+</ul>
+{{/remove.count}}
+{{/changelog}}

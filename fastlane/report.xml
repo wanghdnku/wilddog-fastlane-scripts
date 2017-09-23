@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="fastlane.lanes">
+    
+    
+    
+      
+      <testcase classname="fastlane.lanes" name="00: Verifying required fastlane version" time="0.001961">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="01: default_platform" time="0.001484">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="02: cocoapods" time="3.649504">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="03: ensure_git_branch" time="0.012607">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="04: ensure_git_status_clean" time="0.012219">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="05: wdg_get_current_changelog" time="0.012824">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="06: increment_version_number" time="1.951888">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="07: mc_get_changelog_string" time="0.01733">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="08: wdg_get_current_changelog" time="0.011434">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="09: mc_forward_changelog" time="0.021676">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="10: upload_sdk_to_cdn" time="0.611201">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="11: git_commit" time="0.122981">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="12: push_to_git_remote" time="1.533008">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="13: create_merge_request" time="1.200756">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="14: notification" time="0.204899">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="15: accept_merge_request" time="3.92485">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="16: add_git_tag" time="0.015701">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="17: push_git_tags" time="1.027981">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="18: notification" time="0.228626">
+        
+      </testcase>
+    
+  </testsuite>
+</testsuites>
