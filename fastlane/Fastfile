@@ -29,12 +29,13 @@ platform :ios do
 
   desc 'Build, pack and send to SA in email attachments for a new release.'
   lane :release do |options|
+
+    # 1
     version_string = options[:version]
     raise 'The version is missing. Use `fastlane release version:{version_number}`.' if version_string.nil? || version_string.empty?
 
     raise 'The Project name is missing. Write it in `.env.yourname` file then specific `--env yourname` in fastlane to use it.' if ENV['WDG_PROJECT_NAME'].nil? || ENV['WDG_PROJECT_NAME'].empty?
     raise 'The Changelog path is missing. Write it in `.env.yourname` file then specific `--env yourname` in fastlane to use it.' if ENV['CHANGELOG_PATH'].nil? || ENV['CHANGELOG_PATH'].empty?
-
     raise 'The GitLab private key is missing. Write it in `.env.yourname` file then specific `--env yourname` in fastlane to use it.' if ENV['GITLAB_PRIVATE_KEY'].nil? || ENV['GITLAB_PRIVATE_KEY'].empty?
     raise 'The GitLab user id is missing. Write it in `.env.yourname` file then specific `--env yourname` in fastlane to use it.' if ENV['GITLAB_USER_ID'].nil? || ENV['GITLAB_USER_ID'].empty?
     raise 'The GitLab source project id is missing. Write it in `.env.yourname` file then specific `--env yourname` in fastlane to use it.' if ENV['GITLAB_SOURCE_PROJECT_ID'].nil? || ENV['GITLAB_SOURCE_PROJECT_ID'].empty?
@@ -50,21 +51,27 @@ platform :ios do
 
     release_project_name = ENV['WDG_PROJECT_NAME']
 
+    # 2
+    # Runs `pod install` for the project.
     cocoapods
 
+    # 3
+    # Raises an exception if not on a specific git branch.
     ensure_git_branch(branch: 'master')
+    # Raises an exception if there are uncommitted git changes.
     ensure_git_status_clean
 
-    # Ensure CHANGELOG not empty
+    # 4
+    # Ensure CHANGELOG not empty,
     changelog = wdg_get_current_changelog(yaml_path: ENV['CHANGELOG_PATH'])
-    if changelog['public'].empty?
-      raise 'Public changelog must has at least one record'.red
-    end
+    raise 'Public changelog must has at least one record'.red if changelog['public'].empty?
 
-    # Project Version Bump
+    # 5
+    # Increment the version number of the project.
     increment_version_number(version_number: version_string)
 
-    # Generate Version header
+    # 6
+    # Generate header file from template that defining the current SDK version string. Currently only WilddogSync iOS needs this step.
     version_header_template_path = "#{release_project_name}/#{release_project_name}Version.h.mustache"
     version_header_path = "#{release_project_name}/#{release_project_name}Version.h"
     if ENV['RELEASE_ACTION_GENERATE_VERSION_HEADER_ENABLE'] == 'true'
@@ -79,19 +86,23 @@ platform :ios do
       end
     end
 
-    # Test
+    # 7
+    # Run tests before releasing.
     if ENV['RELEASE_ACTION_TESTING_ENABLE'] == 'true'
       scan(scheme: release_project_name, devices: ['iPhone 5', 'iPhone 7'])
     end
 
+    # 8
     # Build
     Dir.chdir '..' do
       Actions.sh("pushd Deploy && ./build#{release_project_name}.sh #{version_string} && popd")
     end
+    
     the_file_name = "#{release_project_name}-#{version_string}.zip"
     path_to_build_file = "Deploy/Build/#{the_file_name}"
     path_to_archive_directory = "Deploy/Archive/#{version_string}/"
 
+    # 9
     # Archive #1
     Dir.chdir '..' do
       Actions.sh("mkdir -p #{path_to_archive_directory} && cp #{path_to_build_file} #{path_to_archive_directory}")
@@ -100,6 +111,7 @@ platform :ios do
     changelog_string = mc_get_changelog_string(yaml_path: ENV['CHANGELOG_PATH'])
     public_changelog = wdg_get_current_changelog(yaml_path: ENV['CHANGELOG_PATH'])['public']
 
+    # 10
     # Update Changelog
     # TODO: check if changelog of the version exist. then push new thing to the existing changelog and use it.
     new_release_changelog = {
@@ -112,6 +124,7 @@ platform :ios do
       File.write(ENV['CHANGELOG_PATH'], new_changelog.to_yaml)
     end
 
+    # 11
     # Podspec Update
     build_file_path = "Deploy/Build/#{release_project_name}-#{version_string}.zip"
     build_file_sha256 = Digest::SHA256.file('../' + build_file_path).hexdigest
@@ -130,6 +143,7 @@ platform :ios do
       end
     end
 
+    # 12
     # Podspec for source integration update
     local_podspec_path = "#{release_project_name}.podspec"
     if ENV['RELEASE_ACTION_LOCAL_REPO_PUSH_ENABLE'] == 'true'
@@ -144,23 +158,28 @@ platform :ios do
       end
     end
 
+    # 13
     # Archive #2
     Dir.chdir '..' do
       Actions.sh("mkdir -p #{path_to_archive_directory} && cp #{podspec_path} #{path_to_archive_directory}")
     end
 
+    # 14
     # Podspec lint
     Dir.chdir '..' do
       Actions.sh("pushd Deploy && rm -rf #{release_project_name}.framework && unzip ./Build/#{the_file_name} && pod lib lint #{release_project_name}.podspec --allow-warnings && popd")
     end
 
+    # 15
     # Upload SDK To CDN
     upload_sdk_to_cdn(version:version_string, file_path:build_file_path)
 
+    # 16
     # Git Operations
     git_commit(path: '.', message: "Fastlane: #{version_string} Release Candidate.")
     push_to_git_remote(local_branch: 'master', remote_branch: 'master', remote: 'myfork')
 
+    # 17
     # Create Merge Request
     # TODO: check if the merge request exist. Do not create duplicate merge request.
     source_project_id = ENV['GITLAB_SOURCE_PROJECT_ID']
@@ -179,6 +198,7 @@ platform :ios do
 
     notification(title: "#{release_project_name} v#{version_string}" , message: '构建成功', open: "http://gitlab.wilddog.cn/#{ENV['GITLAB_TARGET_PROJECT_PATH_WITH_NAMESPACE']}/merge_requests")
 
+    # 18
     # CocoaPod Trunk Push
     def work(release_project_name)
       Dir.chdir '..' do
@@ -202,6 +222,7 @@ platform :ios do
 
     retry_work(release_project_name)
 
+    # 19
     # Accept Merge Request
     project_id = ENV['GITLAB_TARGET_PROJECT_ID']
     accept_merge_request(
@@ -211,12 +232,14 @@ platform :ios do
       api_url: 'http://gitlab.wilddog.cn'
     )
 
+    # 20
     # Git operation
     Actions.sh('git checkout master')
     Actions.sh('git pull origin master')
     add_git_tag(tag: version_string)
     push_git_tags(remote: 'origin')
 
+    # 21
     # Wilddog Repo Push
     if ENV['RELEASE_ACTION_LOCAL_REPO_PUSH_ENABLE'] == 'true'
       Dir.chdir '..' do
@@ -224,12 +247,12 @@ platform :ios do
       end
     end
 
+    # 22
     # update version / checksum / download url / changelog in official website
     official_website_app_id = ENV['OFFICIAL_WEBSITE_APP_ID']
     official_website_email = ENV['OFFICIAL_WEBSITE_EMAIL']
     official_website_password = ENV['OFFICIAL_WEBSITE_PASSWORD']
     official_website_project_name = ENV['OFFICIAL_WEBSITE_PROJECT_NAME']
-
     cdn_download_url = "https://cdn.wilddog.com/sdk/ios/#{version_string}/#{release_project_name}-#{version_string}.zip"
 
     if ENV['RELEASE_ACTION_OFFICIAL_WEBSITE_DOWNLOAD_URL_UPDATE_ENABLE'] == 'true'
@@ -240,6 +263,7 @@ platform :ios do
       Actions.sh("wilddog set #{official_website_app_id} wilddog/#{official_website_project_name}/ios/checksum/sha256sum #{build_file_sha256} --email #{official_website_email} --password #{official_website_password}")
     end
 
+    # 23
     # NOTE: Only change this when current project is WilddogSync iOS.
     if ENV['RELEASE_ACTION_OFFICIAL_WEBSITE_CHANGELOG_UPDATE_ENABLE'] == 'true'
       Actions.sh("wilddog set #{official_website_app_id} changes/iOS/version #{version_string} --email #{official_website_email} --password #{official_website_password}")
