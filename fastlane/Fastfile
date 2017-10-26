@@ -263,7 +263,6 @@ platform :ios do
       Actions.sh("wilddog set #{official_website_app_id} wilddog/#{official_website_project_name}/ios/checksum/sha256sum #{build_file_sha256} --email #{official_website_email} --password #{official_website_password}")
     end
 
-    # 23
     # NOTE: Only change this when current project is WilddogSync iOS.
     if ENV['RELEASE_ACTION_OFFICIAL_WEBSITE_CHANGELOG_UPDATE_ENABLE'] == 'true'
       Actions.sh("wilddog set #{official_website_app_id} changes/iOS/version #{version_string} --email #{official_website_email} --password #{official_website_password}")
@@ -272,6 +271,8 @@ platform :ios do
     end
 
     the_release_name = "#{release_project_name}-#{version_string}"
+
+    # 23
     # Send Mail
     if ENV['RELEASE_ACTION_NOTIFICATION_EMAIL_ENABLE'] == 'true'
       Mail.defaults do

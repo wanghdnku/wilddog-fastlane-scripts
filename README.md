@@ -14,11 +14,11 @@ fastlane release version:2.1.0 --env wanghaidong
 
 使用前请确保安装了以下 ruby 库
 
-- cocoapods
-- fastlane
+- yaml (Ruby自带)
 - mail
+- fastlane
 - mustache 
-- yaml
+- cocoapods
 
 如果发版时需要更新官网信息，请确保已经安装了 [wilddog-cli](https://github.com/stackOverMind/wilddog-cli)。
 
