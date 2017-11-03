@@ -3,17 +3,17 @@ upcoming:
   notes:
     public:
       新增:
-      - 
+      - 新增项目。
       改进:
-      - 
+      - 改进项目。
       修复:
-      - 
+      - 修复项目。
       移除:
-      - 
+      - 移除项目。
       已知问题:
-      - 
+      - 已知问题。
     internal:
-    - 
+    - 内部更改。
 releases:
 - version: 2.1.1
   type: Release
