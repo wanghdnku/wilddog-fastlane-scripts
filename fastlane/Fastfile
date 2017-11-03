@@ -259,6 +259,7 @@ lane :postprocess do |options|
     # Actions.sh("wilddog set #{official_website_app_id} changes/iOS/change #{} --email #{official_website_email} --password #{official_website_password}")
   end
   # 3. Send email
+  # FIXME: Changelog is already modified.
   public_changelog = wdg_get_current_changelog(yaml_path: ENV['CHANGELOG_PATH'])['public']
   if ENV['RELEASE_ACTION_NOTIFICATION_EMAIL_ENABLE'] == 'true'
     Mail.defaults do
@@ -297,4 +298,28 @@ lane :postprocess do |options|
       end
     end
   end
+end
+
+
+lane :testaction do
+  wdg_forward_changelog(version_string: '9.9.9', changelog_path: ENV['CHANGELOG_PATH'])
+end
+
+lane :pwd do
+  sh("pwd")
+  Dir.chdir '../Deploy' do
+    sh("pwd")
+  end
+  sh("pwd")
+end
+
+lane :changelog do
+  changelog = wdg_get_current_changelog(yaml_path: ENV['CHANGELOG_PATH'])
+  changelog_string = mc_get_changelog_string(yaml_path: ENV['CHANGELOG_PATH'])
+  puts changelog
+  puts changelog_string
+end
+
+lane :header do
+  wdg_forward_version_header(project_name: "WilddogMock", version_string: "1.1.1")
 end

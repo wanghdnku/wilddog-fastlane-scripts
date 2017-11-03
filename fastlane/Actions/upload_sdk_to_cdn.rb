@@ -13,7 +13,7 @@ module Fastlane
         UI.message "Make CDN Dir With #{version}"
         response = Excon.post(url)
         if response[:status] == 200
-            UI.success("Create CDN Dir #{version} Success ")
+          UI.success("Create CDN Dir #{version} Success ")
         elsif response[:status] != 200
           UI.error("Make CDN Dir responded with #{response[:status]}: #{response[:body]}")
         end
