@@ -75,9 +75,29 @@ lane :version do |options|
   # 1. increment version number
   increment_version_number(version_number: version_string)
   # 2. Generate version header
-  wdg_forward_version_header(project_name: release_project_name, version_string: version_string)
+  version_header_template_path = "#{release_project_name}/#{release_project_name}Version.h.mustache"
+  version_header_path = "#{release_project_name}/#{release_project_name}Version.h"
+  if ENV['RELEASE_ACTION_GENERATE_VERSION_HEADER_ENABLE'] == 'true'
+    Dir.chdir '..' do
+      open(version_header_path, 'w') do |version_header_content|
+        template = open(version_header_template_path, 'r')
+        version_header_content << Mustache.render(
+          template.read,
+          version: version_string
+        )
+      end
+    end
+  end
   # 3. Forward changelog
-  wdg_forward_changelog(version_string: version_string, changelog_path: ENV['CHANGELOG_PATH'])
+  new_release_changelog = {
+    'version' => version_string,
+    'type' => 'Release',
+    'date' => Time.now.strftime('%Y-%m-%d')
+  }
+  new_changelog = mc_forward_changelog(yaml_path: ENV['CHANGELOG_PATH'], changelog_body: new_release_changelog)
+  Dir.chdir '..' do
+    File.write(ENV['CHANGELOG_PATH'], new_changelog.to_yaml)
+  end
 end
 
 
@@ -89,13 +109,37 @@ lane :build do |options|
     scan(scheme: release_project_name, devices: ['iPhone 5', 'iPhone 7'])
   end
   # 2. Build project
-  Dir.chdir '../Deploy' do
-    sh("./build#{release_project_name}.sh")
+  Dir.chdir '..' do
+    Actions.sh("pushd Deploy && ./build#{release_project_name}.sh #{version_string} && popd")
   end
-  # 3. Update podspec
-  update_local = ENV['RELEASE_ACTION_LOCAL_REPO_PUSH_ENABLE'] == 'true' ? true : false
-  wdg_update_podspec(project_name: release_project_name, version_string: version_string, update_local: update_local)
-  # 4. Archive SDK and podspec
+  # 3. Write local podspec
+  local_podspec_path = "#{release_project_name}.podspec"
+  if ENV['RELEASE_ACTION_LOCAL_REPO_PUSH_ENABLE'] == 'true'
+    Dir.chdir '..' do
+      open(local_podspec_path, 'w') do |podspec|
+        template = open("#{release_project_name}.podspec.mustache", 'r')
+        podspec << Mustache.render(
+          template.read,
+          version: version_string
+        )
+      end
+    end
+  end
+  # 4. Write public podspec
+  podspec_path = "Deploy/#{release_project_name}.podspec"
+  build_file_path = "Deploy/Build/#{release_project_name}-#{version_string}.zip"
+  build_file_sha256 = Digest::SHA256.file('../' + build_file_path).hexdigest
+  Dir.chdir '..' do
+    open(podspec_path, 'w') do |podspec|
+      template = open("Deploy/#{release_project_name}.podspec.mustache", 'r')
+      podspec << Mustache.render(
+        template.read,
+        version: version_string,
+        sha256: build_file_sha256
+      )
+    end
+  end
+  # 5. Archive SDK and podspec
   the_file_name = "#{release_project_name}-#{version_string}.zip"
   path_to_build_file = "Deploy/Build/#{the_file_name}"
   path_to_archive_directory = "Deploy/Archive/#{version_string}/"
@@ -278,13 +322,4 @@ end
 
 lane :header do
   wdg_forward_version_header(project_name: "WilddogMock", version_string: "1.1.1")
-end
-
-lane :buildtest do |options|
-  version_string = options[:version]
-  release_project_name = ENV['WDG_PROJECT_NAME']
-  # 2. Build project
-  Dir.chdir '../Deploy' do
-    sh("./build#{release_project_name}.sh")
-  end
 end

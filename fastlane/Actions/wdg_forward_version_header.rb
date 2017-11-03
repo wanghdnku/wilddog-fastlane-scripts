@@ -19,6 +19,8 @@ module Fastlane
           end
         end
 
+        UI.success('Version header is up to date now. 🌝')
+
       end
 
       #####################################################
@@ -26,11 +28,11 @@ module Fastlane
       #####################################################
 
       def self.description
-        "A short description with <= 80 characters of what this action does"
+        "Update version header for the project."
       end
 
       def self.details
-        "You can use this action to do cool things..."
+        "The header file must exist."
       end
 
       def self.available_options

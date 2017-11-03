@@ -5,7 +5,6 @@ module Fastlane
     class WdgForwardChangelogAction < Action
       def self.run(params)
         # fastlane will take care of reading in the parameter and fetching the environment variable:
-        UI.message Actions.sh("pwd")
         # sh "shellcommand ./path"
 
         new_release_changelog = {
@@ -22,13 +21,11 @@ module Fastlane
         yaml_changelog['releases'] = [new_release_changelog] + yaml_changelog['releases']
         yaml_changelog['upcoming']['notes'] = self.reset_upcoming_notes(notes)
 
-        Actions.sh("pwd")
-
         Dir.chdir '.' do
           File.write(params[:changelog_path], yaml_changelog.to_yaml)
         end
 
-        # Actions.lane_context[SharedValues::WDG_FORWARD_CHANGELOG_CUSTOM_VALUE] = "my_val"
+        UI.success('Changelog is up to date now. 🌝')
       end
 
       def self.reset_upcoming_notes(notes)
