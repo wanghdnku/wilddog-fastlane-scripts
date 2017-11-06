@@ -104,17 +104,18 @@ end
 lane :upload do |options|
   version_string = options[:version]
   release_project_name = ENV['WDG_PROJECT_NAME']
-  the_file_name = "#{release_project_name}-#{version_string}.zip"
   # 1. Pod lib lint
-  Dir.chdir '..' do
-    Actions.sh("pushd Deploy && rm -rf #{release_project_name}.framework && unzip ./Build/#{the_file_name} && pod lib lint #{release_project_name}.podspec --allow-warnings && popd")
+  Dir.chdir '../Deploy' do
+    Actions.sh("rm -rf #{release_project_name}.framework")
+    Actions.sh("unzip ./Build/#{release_project_name}-#{version_string}.zip")
+    sh("pod lib lint #{release_project_name}.podspec --allow-warnings")
   end
   # 2. Upload to CDN
   upload_sdk_to_cdn(version:version_string, file_path:build_file_path)
   # 3. pod trunk push
   def work(release_project_name)
-    Dir.chdir '..' do
-      Actions.sh("pushd Deploy && pod trunk push #{release_project_name}.podspec --allow-warnings --verbose && popd")
+    Dir.chdir '../Deploy' do
+      sh("pod trunk push #{release_project_name}.podspec --allow-warnings --verbose")
     end
   end
   def retry_work(release_project_name, retries=0, delay=30, max_retry_count=10)
@@ -165,12 +166,11 @@ lane :gitlab do |options|
   )
   # 5. Pull origin master
   Actions.sh('git checkout master')
-  Actions.sh('git pull origin master')
+  sh('git pull origin master')
   # 6. Add tags and push to origin / myfork
   add_git_tag(tag: version_string)
   push_git_tags(remote: 'origin')
-  # Push to myfork
-
+  push_to_git_remote(local_branch: 'master', remote_branch: 'master', remote: 'myfork')
   # Source integration repo push
   if ENV['RELEASE_ACTION_LOCAL_REPO_PUSH_ENABLE'] == 'true'
     Dir.chdir '..' do
@@ -183,30 +183,19 @@ end
 lane :postprocess do |options|
   version_string = options[:version]
   release_project_name = ENV['WDG_PROJECT_NAME']
-  # 1. Calculate and update message degest
-  official_website_app_id = ENV['OFFICIAL_WEBSITE_APP_ID']
-  official_website_email = ENV['OFFICIAL_WEBSITE_EMAIL']
-  official_website_password = ENV['OFFICIAL_WEBSITE_PASSWORD']
-  official_website_project_name = ENV['OFFICIAL_WEBSITE_PROJECT_NAME']
-  cdn_download_url = "https://cdn.wilddog.com/sdk/ios/#{version_string}/#{release_project_name}-#{version_string}.zip"
-  build_file_path = "Deploy/Build/#{release_project_name}-#{version_string}.zip"
-  build_file_sha256 = Digest::SHA256.file('../' + build_file_path).hexdigest
-  build_file_md5 = Digest::MD5.file('../' + build_file_path).hexdigest
-  build_file_sha1 = Digest::SHA1.file('../' + build_file_path).hexdigest
-  if ENV['RELEASE_ACTION_OFFICIAL_WEBSITE_DOWNLOAD_URL_UPDATE_ENABLE'] == 'true'
-    Actions.sh("wilddog set #{official_website_app_id} wilddog/#{official_website_project_name}/ios/version #{version_string} --email #{official_website_email} --password #{official_website_password}")
-    Actions.sh("wilddog set #{official_website_app_id} wilddog/#{official_website_project_name}/ios/cdn #{cdn_download_url} --email #{official_website_email} --password #{official_website_password}")
-    Actions.sh("wilddog set #{official_website_app_id} wilddog/#{official_website_project_name}/ios/checksum/md5sum #{build_file_md5} --email #{official_website_email} --password #{official_website_password}")
-    Actions.sh("wilddog set #{official_website_app_id} wilddog/#{official_website_project_name}/ios/checksum/sha1sum #{build_file_sha1} --email #{official_website_email} --password #{official_website_password}")
-    Actions.sh("wilddog set #{official_website_app_id} wilddog/#{official_website_project_name}/ios/checksum/sha256sum #{build_file_sha256} --email #{official_website_email} --password #{official_website_password}")
-  end
-  # 2. Update official website changlog
-  if ENV['RELEASE_ACTION_OFFICIAL_WEBSITE_CHANGELOG_UPDATE_ENABLE'] == 'true'
-    Actions.sh("wilddog set #{official_website_app_id} changes/iOS/version #{version_string} --email #{official_website_email} --password #{official_website_password}")
-    # TODO: Finish this.
-    # Actions.sh("wilddog set #{official_website_app_id} changes/iOS/change #{} --email #{official_website_email} --password #{official_website_password}")
-  end
-  # 3. Send email
+
+  # 1. Update official website: Message digest and changlog
+  wdg_update_official_website(
+    version: version_string,
+    project: release_project_name,
+    website_appid: ENV['OFFICIAL_WEBSITE_APP_ID'],
+    website_email: ENV['OFFICIAL_WEBSITE_EMAIL'],
+    website_password: ENV['OFFICIAL_WEBSITE_PASSWORD'],
+    website_project_name: ENV['OFFICIAL_WEBSITE_PROJECT_NAME'],
+    website_changelog: true
+  )
+
+  # 2. Send email
   # FIXME: Changelog is already modified.
   public_changelog = wdg_get_current_changelog(yaml_path: ENV['CHANGELOG_PATH'])['public']
   if ENV['RELEASE_ACTION_NOTIFICATION_EMAIL_ENABLE'] == 'true'
@@ -302,4 +291,16 @@ lane :archive do
     Actions.sh("cp Build/#{release_project_name}-#{version_string}.zip Archive/#{version_string}/")
     Actions.sh("cp #{release_project_name}.podspec Archive/#{version_string}/")
   end
+end
+
+lane :website do
+  wdg_update_official_website(
+    version: "1.1.1",
+    project: "WilddogMock",
+    website_appid: ENV['OFFICIAL_WEBSITE_APP_ID'],
+    website_email: ENV['OFFICIAL_WEBSITE_EMAIL'],
+    website_password: ENV['OFFICIAL_WEBSITE_PASSWORD'],
+    website_project_name: ENV['OFFICIAL_WEBSITE_PROJECT_NAME'],
+    website_changelog: true
+  )
 end
