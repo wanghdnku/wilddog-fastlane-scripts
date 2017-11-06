@@ -59,10 +59,13 @@ end
 lane :preprocess do
   # 1. Cocoapods (pod install)
   cocoapods
+
   # 2. Ensure git brance master
   ensure_git_branch(branch: 'master')
+
   # 3. Ensute git status clean
   ensure_git_status_clean
+
   # 4. Get current changelog
   changelog = wdg_get_current_changelog(yaml_path: ENV['CHANGELOG_PATH'])
   raise 'Public changelog must has at least one record'.red if changelog['public'].empty?
@@ -72,22 +75,24 @@ end
 lane :version do |options|
   version_string = options[:version]
   release_project_name = ENV['WDG_PROJECT_NAME']
+
   # 1. increment version number
   increment_version_number(version_number: version_string)
+
   # 2. Generate version header
   wdg_forward_version_header(project_name: release_project_name, version_string: version_string)
-  # 3. Forward changelog
-  wdg_forward_changelog(version_string: version_string, changelog_path: ENV['CHANGELOG_PATH'])
 end
 
 
 lane :build do |options|
   version_string = options[:version]
   release_project_name = ENV['WDG_PROJECT_NAME']
+  
   # 1. Run test
   if ENV['RELEASE_ACTION_TESTING_ENABLE'] == 'true'
     scan(scheme: release_project_name, devices: ['iPhone 5', 'iPhone 7'])
   end
+  
   # 2. Build and archive
   Dir.chdir '../Deploy' do
     sh("./build#{release_project_name}.sh")
@@ -95,6 +100,7 @@ lane :build do |options|
     Actions.sh("cp Build/#{release_project_name}-#{version_string}.zip Archive/#{version_string}/")
     Actions.sh("cp #{release_project_name}.podspec Archive/#{version_string}/")
   end
+  
   # 3. Update podspec
   update_local = ENV['RELEASE_ACTION_LOCAL_REPO_PUSH_ENABLE'] == 'true' ? true : false
   wdg_update_podspec(project_name: release_project_name, version_string: version_string, update_local: update_local)
@@ -104,14 +110,17 @@ end
 lane :upload do |options|
   version_string = options[:version]
   release_project_name = ENV['WDG_PROJECT_NAME']
+  
   # 1. Pod lib lint
   Dir.chdir '../Deploy' do
     Actions.sh("rm -rf #{release_project_name}.framework")
     Actions.sh("unzip ./Build/#{release_project_name}-#{version_string}.zip")
     sh("pod lib lint #{release_project_name}.podspec --allow-warnings")
   end
+  
   # 2. Upload to CDN
   upload_sdk_to_cdn(version:version_string, file_path:build_file_path)
+  
   # 3. pod trunk push
   def work(release_project_name)
     Dir.chdir '../Deploy' do
@@ -137,10 +146,13 @@ end
 
 lane :gitlab do |options|
   version_string = options[:version]
+  
   # 1. Git commit (Release candidate)
   git_commit(path: '.', message: "Fastlane: #{version_string} Release Candidate.")
+  
   # 2. Push to myfork master
   push_to_git_remote(local_branch: 'master', remote_branch: 'master', remote: 'myfork')
+  
   # 3. Create merge request
   changelog_string = mc_get_changelog_string(yaml_path: ENV['CHANGELOG_PATH'])
   source_project_id = ENV['GITLAB_SOURCE_PROJECT_ID']
@@ -156,6 +168,7 @@ lane :gitlab do |options|
     path_with_namespace: ENV['GITLAB_TARGET_PROJECT_PATH_WITH_NAMESPACE'],
     api_url: 'http://gitlab.wilddog.cn'
   )
+  
   # 4. Accept merge request
   project_id = ENV['GITLAB_TARGET_PROJECT_ID']
   accept_merge_request(
@@ -164,13 +177,16 @@ lane :gitlab do |options|
     issue_id: "#{issue_id}",
     api_url: 'http://gitlab.wilddog.cn'
   )
+  
   # 5. Pull origin master
   Actions.sh('git checkout master')
   sh('git pull origin master')
+  
   # 6. Add tags and push to origin / myfork
   add_git_tag(tag: version_string)
   push_git_tags(remote: 'origin')
   push_to_git_remote(local_branch: 'master', remote_branch: 'master', remote: 'myfork')
+  
   # Source integration repo push
   if ENV['RELEASE_ACTION_LOCAL_REPO_PUSH_ENABLE'] == 'true'
     Dir.chdir '..' do
@@ -196,45 +212,13 @@ lane :postprocess do |options|
   )
 
   # 2. Send email
-  # FIXME: Changelog is already modified.
-  public_changelog = wdg_get_current_changelog(yaml_path: ENV['CHANGELOG_PATH'])['public']
   if ENV['RELEASE_ACTION_NOTIFICATION_EMAIL_ENABLE'] == 'true'
-    Mail.defaults do
-      delivery_method :smtp, {
-        :address              => 'smtp.partner.outlook.cn',
-        :port                 => 587,
-        :domain               => 'wilddog.com',
-        :user_name            => ENV['EMAIL_USERNAME'],
-        :password             => ENV['EMAIL_PASSWORD'],
-        :authentication       => :login,
-        :enable_starttls_auto => true
-      }
-    end
-    template_changelog = {}
-    template_changelog['add'] = public_changelog['新增'].map { |entity| { 'content' => entity } } unless public_changelog['新增'].nil?
-    template_changelog['improve'] = public_changelog['改进'].map { |entity| { 'content' => entity } } unless public_changelog['改进'].nil?
-    template_changelog['repair'] = public_changelog['修复'].map { |entity| { 'content' => entity } } unless public_changelog['修复'].nil?
-    template_changelog['remove'] = public_changelog['移除'].map { |entity| { 'content' => entity } } unless public_changelog['移除'].nil?
-    notification_mail_template_path = "fastlane/notification.html.mustache"
-    template = open('../' + notification_mail_template_path, 'r')
-    notification_mail_content = Mustache.render(
-      template.read,
-      release_project_name: release_project_name,
-      version_string: version_string,
-      changelog: template_changelog
-    )
-    sending_email_to_users = ENV['EMAIL_NOTIFICATION_ADDRESS'].split(' ')
-    UI.message("Sending email to #{sending_email_to_users}.")
-    Mail.deliver do
-      from    ENV['EMAIL_USERNAME']
-      to      sending_email_to_users
-      subject "#{release_project_name} iOS #{version_string} 上线通知"
-      html_part do
-        content_type 'text/html; charset=UTF-8'
-        body         notification_mail_content
-      end
-    end
+    wdg_send_mail(version: version_string)
   end
+
+  # 3. Forward changelog
+  wdg_forward_changelog(version_string: version_string, changelog_path: ENV['CHANGELOG_PATH'])
+
 end
 
 
@@ -303,4 +287,8 @@ lane :website do
     website_project_name: ENV['OFFICIAL_WEBSITE_PROJECT_NAME'],
     website_changelog: true
   )
+end
+
+lane :mail do
+  wdg_send_mail(version: '1.1.1')
 end

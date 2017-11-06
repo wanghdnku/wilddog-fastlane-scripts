@@ -2,6 +2,7 @@ require 'mustache'
 
 module Fastlane
   module Actions
+    
     class WdgUpdatePodspecAction < Action
       def self.run(params)
         project_name = params[:project_name]

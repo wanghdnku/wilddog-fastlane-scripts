@@ -3,9 +3,6 @@ require 'securerandom'
 
 module Fastlane
   module Actions
-    module SharedValues
-      UPLOAD_SDK_TO_CDN_CUSTOM_VALUE = :UPLOAD_SDK_TO_CDN_CUSTOM_VALUE
-    end
 
     class UploadSdkToCdnAction < Action
       def self.create_cdn_dir(version)
