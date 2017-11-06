@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name                = "WilddogVideo"
-  s.version             = "2.1.1"
+  s.version             = "1.1.1"
   s.summary             = "Wilddog video module for iOS"
 
   s.description         = <<-DESC
@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   s.author              = "Wilddog Team"
   s.platform            = :ios, "8.0"
 
-  s.source              = { :http => "https://cdn.wilddog.com/sdk/ios/2.1.1/WilddogVideo-2.1.1.zip"}
+  s.source              = { :http => "https://cdn.wilddog.com/sdk/ios/1.1.1/WilddogVideo-1.1.1.zip"}
 
   s.vendored_frameworks = "WilddogVideo.framework"
 

@@ -88,24 +88,16 @@ lane :build do |options|
   if ENV['RELEASE_ACTION_TESTING_ENABLE'] == 'true'
     scan(scheme: release_project_name, devices: ['iPhone 5', 'iPhone 7'])
   end
-  # 2. Build project
+  # 2. Build and archive
   Dir.chdir '../Deploy' do
     sh("./build#{release_project_name}.sh")
+    Actions.sh("mkdir -p Archive/#{version_string}/")
+    Actions.sh("cp Build/#{release_project_name}-#{version_string}.zip Archive/#{version_string}/")
+    Actions.sh("cp #{release_project_name}.podspec Archive/#{version_string}/")
   end
   # 3. Update podspec
   update_local = ENV['RELEASE_ACTION_LOCAL_REPO_PUSH_ENABLE'] == 'true' ? true : false
   wdg_update_podspec(project_name: release_project_name, version_string: version_string, update_local: update_local)
-  # 4. Archive SDK and podspec
-  the_file_name = "#{release_project_name}-#{version_string}.zip"
-  path_to_build_file = "Deploy/Build/#{the_file_name}"
-  path_to_archive_directory = "Deploy/Archive/#{version_string}/"
-  local_podspec_path = "#{release_project_name}.podspec"
-  Dir.chdir '..' do
-    Actions.sh("mkdir -p #{path_to_archive_directory} && cp #{path_to_build_file} #{path_to_archive_directory}")
-  end
-  Dir.chdir '..' do
-    Actions.sh("mkdir -p #{path_to_archive_directory} && cp #{podspec_path} #{path_to_archive_directory}")
-  end
 end
 
 
@@ -257,6 +249,14 @@ lane :postprocess do |options|
 end
 
 
+
+
+
+
+###############################################
+# For test 
+###############################################
+
 lane :testaction do
   wdg_forward_changelog(version_string: '9.9.9', changelog_path: ENV['CHANGELOG_PATH'])
 end
@@ -277,7 +277,7 @@ lane :changelog do
 end
 
 lane :header do
-  wdg_forward_version_header(project_name: "WilddogMock", version_string: "1.1.1")
+  wdg_forward_version_header(project_name: "WilddogMock", version_string: "3.3.3")
 end
 
 lane :buildtest do |options|
@@ -286,5 +286,20 @@ lane :buildtest do |options|
   # 2. Build project
   Dir.chdir '../Deploy' do
     sh("./build#{release_project_name}.sh")
+  end
+end
+
+lane :podspec do |options|
+  wdg_update_podspec(version_string: "1.1.1", project_name: "WilddogMock")
+end
+
+lane :archive do 
+  version_string = "1.1.1"
+  release_project_name = ENV['WDG_PROJECT_NAME']
+  
+  Dir.chdir '../Deploy' do
+    Actions.sh("mkdir -p Archive/#{version_string}/")
+    Actions.sh("cp Build/#{release_project_name}-#{version_string}.zip Archive/#{version_string}/")
+    Actions.sh("cp #{release_project_name}.podspec Archive/#{version_string}/")
   end
 end

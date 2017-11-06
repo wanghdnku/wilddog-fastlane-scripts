@@ -1,3 +1,5 @@
+require 'mustache'
+
 module Fastlane
   module Actions
     class WdgUpdatePodspecAction < Action
@@ -6,13 +8,12 @@ module Fastlane
         version_string = params[:version_string]
         update_local = params[:update_local]
 
-        podspec_path = "#{project_name}.podspec"
         build_file_path = "Deploy/Build/#{project_name}-#{version_string}.zip"
         build_file_sha256 = Digest::SHA256.file('./' + build_file_path).hexdigest
 
         Dir.chdir './Deploy' do
           open("#{project_name}.podspec", 'w') do |podspec|
-            template = open("#{release_project_name}.podspec.mustache", 'r')
+            template = open("#{project_name}.podspec.mustache", 'r')
             podspec << Mustache.render(
               template.read,
               version: version_string,
@@ -22,10 +23,10 @@ module Fastlane
         end
         UI.success('Public podspec has been updated. 🌝')
 
-        if update_local do
-          Dir.chdir '..' do
+        if update_local
+          Dir.chdir '.' do
             open("#{project_name}.podspec", 'w') do |podspec|
-              template = open("#{release_project_name}.podspec.mustache", 'r')
+              template = open("#{project_name}.podspec.mustache", 'r')
               podspec << Mustache.render(
                 template.read,
                 version: version_string
