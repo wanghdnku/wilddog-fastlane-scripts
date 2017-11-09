@@ -1,10 +1,10 @@
 Pod::Spec.new do |s|
-  s.name                = "WilddogVideo"
+  s.name                = "WilddogMock"
   s.version             = "{{version}}"
-  s.summary             = "Wilddog video module for iOS"
+  s.summary             = "WilddogMock project is just for testing fastlane script."
 
   s.description         = <<-DESC
-                          The video module lets you make realtime media communication.
+                          DO NOT integrate this framework.
                           DESC
 
   s.homepage            = "https://www.wilddog.com/"
@@ -20,7 +20,6 @@ Pod::Spec.new do |s|
   s.library             = "c++"
   s.xcconfig            = { "OTHER_LDFLAGS" => "-ObjC" }
 
-  s.dependency "WilddogVideoBase", ">= 2.0.0"
-  s.dependency "WilddogAuth", ">= 2.0.2"
-  s.dependency "WilddogWebRTC", ">= 58.0.11"
+  s.dependency "WilddogVideoBase", "~> 2.1.0"
+
 end

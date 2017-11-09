@@ -1,10 +1,10 @@
 Pod::Spec.new do |s|
-  s.name         = "WilddogVideoBase"
-  s.version      = "9.9.9"
-  s.summary      = "WilddogVideoBase 的源码集成版本。"
+  s.name         = "WilddogMock"
+  s.version      = "0.0.1"
+  s.summary      = "WilddogMock 的源码集成版本。"
 
   s.description  = <<-DESC
-WilddogVideoBase 的源码集成版本。供内部开发使用。
+                   WilddogMock 的源码集成版本。供内部开发使用。
                    DESC
 
   s.homepage     = "https://www.wilddog.com/"
@@ -12,16 +12,16 @@ WilddogVideoBase 的源码集成版本。供内部开发使用。
   s.author       = "Wilddog Team"
   s.platform     = :ios, "8.0"
 
-  s.source       = { :git => "http://gitlab.wilddog.cn/ios/WilddogVideoBase.git", :tag => "#{s.version}" }
-  s.public_header_files = "WilddogVideoBase/**/*.{h}"
-  s.source_files  = "WilddogVideoBase/**/*.{h,m,mm}"
+  s.source       = { :git => "git@gitlab.wilddog.cn:wanghaidong/fastlane-script.git", :tag => "#{s.version}" }
+  s.public_header_files = "WilddogMock/**/*.{h}"
+  s.source_files  = "WilddogMock/**/*.{h,m,mm}"
 
-  s.module_map = 'WilddogVideoBase/WilddogVideoBase.modulemap' 
+  s.module_map = 'WilddogMock/WilddogMock.modulemap' 
   s.frameworks   = "AudioToolbox", "VideoToolbox", "AVFoundation", "GLKit", "CoreMedia", "UIKit", "Foundation"
   s.libraries   = "c++"
   s.xcconfig     = { 'OTHER_LDFLAGS' => '-ObjC' }
-  s.prefix_header_file = 'WilddogVideoBase/PrefixHeader.pch'
+  s.prefix_header_file = 'WilddogMock/PrefixHeader.pch'
 
-  s.dependency "WilddogCore"
-  s.dependency "WilddogWebRTC", '>=58.0.11'
+  s.dependency "WilddogVideoBase"
+
 end
