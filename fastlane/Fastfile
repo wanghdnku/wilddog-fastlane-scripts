@@ -21,13 +21,38 @@ error do |lane, exception|
 end
 
 
+################################################################
+#     Usage: fastlane release version:0.0.1 env:yourname       #
+################################################################
+
 lane :release do |options|
+  version_string = options[:version]
+  env_file = options[:env]
+  raise 'The version is missing. Use `fastlane release version:{env_file}`.' if env_file.nil? || env_file.empty?
+  # 1. Preprocess
+  sh("fastlane preprocess version:#{version_string} --env #{env_file}")
+  # 2. Increase Version
+  sh("fastlane version version:#{version_string} --env #{env_file}")
+  # 3. Build and Archive
+  sh("fastlane build version:#{version_string} --env #{env_file}")
+  # 4. CDN and CocoaPods
+  sh("fastlane upload version:#{version_string} --env #{env_file}")
+  # 5. Notification
+  sh("fastlane mail version:#{version_string} --env #{env_file}")
+  # 6. Update Gitlab
+  sh("fastlane gitlab version:#{version_string} --env #{env_file}")
+  # 7. Postprocess
+  sh("fastlane postprocess version:#{version_string} --env #{env_file}")
+end
+
+
+lane :preprocess do |options|
   fastlane_version '2.10.0'
   default_platform :ios
   version_string = options[:version]
-  env_file = options[:env]
+
+  # Check if env params exists.
   raise 'The version is missing. Use `fastlane release version:{version_number}`.' if version_string.nil? || version_string.empty?
-  raise 'The version is missing. Use `fastlane release version:{env_file}`.' if env_file.nil? || env_file.empty?
   raise 'The Project name is missing. Write it in `.env.yourname` file then specific `--env yourname` in fastlane to use it.' if ENV['WDG_PROJECT_NAME'].nil? || ENV['WDG_PROJECT_NAME'].empty?
   raise 'The GitLab private key is missing. Write it in `.env.yourname` file then specific `--env yourname` in fastlane to use it.' if ENV['GITLAB_PRIVATE_KEY'].nil? || ENV['GITLAB_PRIVATE_KEY'].empty?
   raise 'The GitLab user id is missing. Write it in `.env.yourname` file then specific `--env yourname` in fastlane to use it.' if ENV['GITLAB_USER_ID'].nil? || ENV['GITLAB_USER_ID'].empty?
@@ -41,22 +66,15 @@ lane :release do |options|
   raise 'The Official Website Email is missing. Write it in `.env.yourname` file then specific `--env yourname` in fastlane to use it.' if ENV['OFFICIAL_WEBSITE_EMAIL'].nil? || ENV['OFFICIAL_WEBSITE_EMAIL'].empty?
   raise 'The Official Website Password is missing. Write it in `.env.yourname` file then specific `--env yourname` in fastlane to use it.' if ENV['OFFICIAL_WEBSITE_PASSWORD'].nil? || ENV['OFFICIAL_WEBSITE_PASSWORD'].empty?
   raise 'The Official Website Project Name is missing. Write it in `.env.yourname` file then specific `--env yourname` in fastlane to use it.' if ENV['OFFICIAL_WEBSITE_PROJECT_NAME'].nil? || ENV['OFFICIAL_WEBSITE_PROJECT_NAME'].empty?
-  # 1. Preprocess
-  sh("fastlane preprocess --env #{env_file}")
-  # 2. Increase Version
-  sh("fastlane version version:#{version_string} --env #{env_file}")
-  # 3. Build and Archive
-  sh("fastlane build version:#{version_string} --env #{env_file}")
-  # 4. CDN and CocoaPods
-  sh("fastlane upload version:#{version_string} --env #{env_file}")
-  # 5. Update Gitlab
-  sh("fastlane gitlab version:#{version_string} --env #{env_file}")
-  # 6. Postprocess
-  sh("fastlane postprocess version:#{version_string} --env #{env_file}")
-end
 
+  # Check file and repo reachability.
+  raise 'The CHANGELOG is missing.' if not File.exist?("../CHANGELOG.yml")
+  raise 'The build shell script is missing.' if not File.exist?("../Deploy/build#{ENV['WDG_PROJECT_NAME']}.sh")
+  raise 'The public podspec template is missing.' if not File.exist?("../Deploy/#{ENV['WDG_PROJECT_NAME']}.podspec.mustache")
+  if ENV['RELEASE_ACTION_LOCAL_REPO_PUSH_ENABLE'] == 'true' then
+    raise 'The local podspec template is missing.' if not File.exist?("../#{ENV['WDG_PROJECT_NAME']}.podspec.mustache")
+  end
 
-lane :preprocess do
   # 1. Cocoapods (pod install)
   cocoapods
 
@@ -69,6 +87,8 @@ lane :preprocess do
   # 4. Get current changelog
   changelog = wdg_get_current_changelog(yaml_path: ENV['CHANGELOG_PATH'])
   raise 'Public changelog must has at least one record'.red if changelog['public'].empty?
+  puts changelog
+
 end
 
 
@@ -80,7 +100,10 @@ lane :version do |options|
   increment_version_number(version_number: version_string)
 
   # 2. Generate version header
-  wdg_forward_version_header(project_name: release_project_name, version_string: version_string)
+  if ENV['RELEASE_ACTION_GENERATE_VERSION_HEADER_ENABLE'] == 'true'
+    wdg_forward_version_header(project_name: release_project_name, version_string: version_string)
+  end
+
 end
 
 
@@ -95,7 +118,7 @@ lane :build do |options|
   
   # 2. Build and archive
   Dir.chdir '../Deploy' do
-    sh("./build#{release_project_name}.sh")
+    sh("./build#{release_project_name}.sh #{version_string}")
     Actions.sh("mkdir -p Archive/#{version_string}/")
     Actions.sh("cp Build/#{release_project_name}-#{version_string}.zip Archive/#{version_string}/")
     Actions.sh("cp #{release_project_name}.podspec Archive/#{version_string}/")
@@ -118,8 +141,12 @@ lane :upload do |options|
     sh("pod lib lint #{release_project_name}.podspec --allow-warnings")
   end
   
-  # 2. Upload to CDN
-  upload_sdk_to_cdn(version:version_string, file_path:build_file_path)
+  # 2. Upload to CDN (url is optional)
+  upload_sdk_to_cdn(
+    version:version_string, 
+    file_path:"Deploy/Build/#{release_project_name}-#{version_string}.zip", 
+    url:"http://upload.ops.wilddog.cn/ios/"
+  )
   
   # 3. pod trunk push
   def work(release_project_name)
@@ -143,10 +170,26 @@ lane :upload do |options|
   retry_work(release_project_name)
 end
 
+lane :mail do |options|
+
+  version_string = options[:version]
+
+  # 1. Send email
+  if ENV['RELEASE_ACTION_NOTIFICATION_EMAIL_ENABLE'] == 'true'
+    wdg_send_mail(version: version_string)
+  end
+
+end
+
 
 lane :gitlab do |options|
   version_string = options[:version]
-  
+  release_project_name = ENV['WDG_PROJECT_NAME']
+  changelog_string = mc_get_changelog_string(yaml_path: ENV['CHANGELOG_PATH'])
+
+  # 0. Forward changelog
+  wdg_forward_changelog(version_string: version_string, changelog_path: ENV['CHANGELOG_PATH'])
+
   # 1. Git commit (Release candidate)
   git_commit(path: '.', message: "Fastlane: #{version_string} Release Candidate.")
   
@@ -154,7 +197,6 @@ lane :gitlab do |options|
   push_to_git_remote(local_branch: 'master', remote_branch: 'master', remote: 'myfork')
   
   # 3. Create merge request
-  changelog_string = mc_get_changelog_string(yaml_path: ENV['CHANGELOG_PATH'])
   source_project_id = ENV['GITLAB_SOURCE_PROJECT_ID']
   target_project_id = ENV['GITLAB_TARGET_PROJECT_ID']
   review_user_id = ENV['GITLAB_USER_ID']
@@ -187,7 +229,7 @@ lane :gitlab do |options|
   push_git_tags(remote: 'origin')
   push_to_git_remote(local_branch: 'master', remote_branch: 'master', remote: 'myfork')
   
-  # Source integration repo push
+  # 7. Source integration repo push
   if ENV['RELEASE_ACTION_LOCAL_REPO_PUSH_ENABLE'] == 'true'
     Dir.chdir '..' do
       Actions.sh("pod repo push wilddog-specs #{release_project_name}.podspec --allow-warnings --sources=git@gitlab.wilddog.cn:ios/Specs.git --verbose")
@@ -208,17 +250,9 @@ lane :postprocess do |options|
     website_email: ENV['OFFICIAL_WEBSITE_EMAIL'],
     website_password: ENV['OFFICIAL_WEBSITE_PASSWORD'],
     website_project_name: ENV['OFFICIAL_WEBSITE_PROJECT_NAME'],
-    website_changelog: true
+    print_rather_than_invoke: false
   )
 
-  # 2. Send email
-  if ENV['RELEASE_ACTION_NOTIFICATION_EMAIL_ENABLE'] == 'true'
-    wdg_send_mail(version: version_string)
-  end
-
-  # 3. Forward changelog
-  wdg_forward_changelog(version_string: version_string, changelog_path: ENV['CHANGELOG_PATH'])
-
 end
 
 
@@ -227,12 +261,8 @@ end
 
 
 ###############################################
-# For test 
+# For testing
 ###############################################
-
-lane :testaction do
-  wdg_forward_changelog(version_string: '9.9.9', changelog_path: ENV['CHANGELOG_PATH'])
-end
 
 lane :pwd do
   sh("pwd")
@@ -240,55 +270,4 @@ lane :pwd do
     sh("pwd")
   end
   sh("pwd")
-end
-
-lane :changelog do
-  changelog = wdg_get_current_changelog(yaml_path: ENV['CHANGELOG_PATH'])
-  changelog_string = mc_get_changelog_string(yaml_path: ENV['CHANGELOG_PATH'])
-  puts changelog
-  puts changelog_string
-end
-
-lane :header do
-  wdg_forward_version_header(project_name: "WilddogMock", version_string: "3.3.3")
-end
-
-lane :buildtest do |options|
-  version_string = options[:version]
-  release_project_name = ENV['WDG_PROJECT_NAME']
-  # 2. Build project
-  Dir.chdir '../Deploy' do
-    sh("./build#{release_project_name}.sh")
-  end
-end
-
-lane :podspec do |options|
-  wdg_update_podspec(version_string: "1.1.1", project_name: "WilddogMock")
-end
-
-lane :archive do 
-  version_string = "1.1.1"
-  release_project_name = ENV['WDG_PROJECT_NAME']
-  
-  Dir.chdir '../Deploy' do
-    Actions.sh("mkdir -p Archive/#{version_string}/")
-    Actions.sh("cp Build/#{release_project_name}-#{version_string}.zip Archive/#{version_string}/")
-    Actions.sh("cp #{release_project_name}.podspec Archive/#{version_string}/")
-  end
-end
-
-lane :website do
-  wdg_update_official_website(
-    version: "1.1.1",
-    project: "WilddogMock",
-    website_appid: ENV['OFFICIAL_WEBSITE_APP_ID'],
-    website_email: ENV['OFFICIAL_WEBSITE_EMAIL'],
-    website_password: ENV['OFFICIAL_WEBSITE_PASSWORD'],
-    website_project_name: ENV['OFFICIAL_WEBSITE_PROJECT_NAME'],
-    website_changelog: true
-  )
-end
-
-lane :mail do
-  wdg_send_mail(version: '1.1.1')
 end

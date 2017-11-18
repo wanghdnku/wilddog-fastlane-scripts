@@ -5,14 +5,15 @@ module Fastlane
   module Actions
 
     class UploadSdkToCdnAction < Action
-      def self.create_cdn_dir(version)
-        url = "http://upload.ops.wilddog.cn/ios/?value=#{version}&type=mkdir"
+      def self.create_cdn_dir(version, cdn_url)
+        # url = "http://upload.ops.wilddog.cn/ios/?value=#{version}&type=mkdir"
+        url = "#{cdn_url}?value=#{version}&type=mkdir"
         UI.message "Make CDN Dir With #{version}"
         response = Excon.post(url)
         if response[:status] == 200
           UI.success("Create CDN Dir #{version} Success ")
         elsif response[:status] != 200
-          UI.error("Make CDN Dir responded with #{response[:status]}: #{response[:body]}")
+          # UI.error("Make CDN Dir responded with #{response[:status]}: #{response[:body]}")
         end
       end
 
@@ -47,12 +48,14 @@ module Fastlane
 
       def self.run(params)
         # fastlane will take care of reading in the parameter and fetching the environment variable:
-        
+        cdn_url = params[:url]
+        version = params[:version]
+
         # create version dir
-        create_cdn_dir(params[:version])
+        create_cdn_dir(version, cdn_url)
 
         # upload sdk to cdn.
-        url = "http://upload.ops.wilddog.cn/ios/#{params[:version]}"
+        url = "#{cdn_url}#{version}"
         UI.message "upload SDK To CDN. file path: #{params[:file_path]}"
 
         form_data = multipart_form_data(params[:file_path])
@@ -108,6 +111,11 @@ module Fastlane
         
         # Below a few examples
         [
+          FastlaneCore::ConfigItem.new(key: :url,
+                                       description: "The url of cdn, end with '/'",
+                                       is_string: true,
+                                       optional: true,
+                                       default_value: "http://upload.ops.wilddog.cn/ios/"),
           FastlaneCore::ConfigItem.new(key: :version,
                                        env_name: "FL_UPLOAD_SDK_TO_CDN_VERSION", # The name of the environment variable
                                        description: "SDK version", # a short description of this parameter
